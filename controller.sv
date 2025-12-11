@@ -30,14 +30,13 @@ module controller #(
 
     // Local parameters ---------------
     // Clock 
-    localparam int CLOCKS_PER_TICK = CLOCK_FREQ_HZ / I2C_FREQ_HZ;
-    // SDA and SCL low
-    localparam int SDA_LOW_TIME = 3;
-    localparam int SCL_LOW_TIME = 5;
+    localparam int CLOCKSPERTICK = CLOCK_FREQ_HZ / I2C_FREQ_HZ;
+    // SDA  low
+    localparam int SDALOWTIME = 3;
 
     // Clock signals
     int clock_count;
-    assign FULL_TICK = (clock_count == CLOCKS_PER_TICK - 1);
+    assign FULL_TICK = (clock_count == CLOCKSPERTICK - 1);
 
     // Clock logic
     always_ff @(posedge clock, posedge reset) begin
@@ -60,6 +59,8 @@ module controller #(
     logic rw_flag;
     logic [3:0] addr_count;
     logic [3:0] bit_count;
+
+    logic [$clog2(SDALOWTIME)-1:0] sda_low_count;
 
     // States
     typedef enum logic [2:0] {
@@ -90,10 +91,9 @@ module controller #(
                         rw_flag <= rw;
                         if (~rw_flag) // write
                             tx_buffer <= tx_data;
+                        sda_low_count <= 0;
                         state <= START;
                     end
-                    else
-                        state <= IDLE;
                 end
 
                 START: begin
@@ -102,7 +102,12 @@ module controller #(
                     sda <= 0;
                     scl <= 1;
                     if (FULL_TICK) begin
-                        state <= ADDR;
+                        if (sda_low_count < SDALOWTIME - 1) begin
+                            sda_low_count <= sda_low_count + 1;
+                        end
+                        else
+                            bit_count <= 0;
+                            state <= ADDR;
                     end
                 end
 
@@ -110,6 +115,9 @@ module controller #(
                     
                 end
 
+                default: begin
+                    state <= IDLE;
+                end
             endcase
         end
     end
