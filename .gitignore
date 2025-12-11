@@ -1,2 +1,5 @@
-#PDFS
+# PDFs
 *.pdf
+
+# Images
+*.png
