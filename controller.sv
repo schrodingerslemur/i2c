@@ -171,12 +171,7 @@ module controller #(
                         else begin
                             // ACK bit
                             scl_tx <= 0;
-                            if (ack_error == 0) begin
-                                sda_tx <= 0; // send ACK
-                            end
-                            else begin
-                                sda_tx <= 1; // send NACK
-                            end
+                            sda_tx <= 0; // send ACK
 
                             state <= STOP;
                             rx_data <= rx_buffer;
