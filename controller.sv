@@ -1,8 +1,8 @@
 module controller #(
-    parameter CLOCK_FREQ_HZ = 50_000_000,
-    parameter I2C_FREQ_HZ   = 100_000,
-    parameter ADDR_WIDTH = 7,
-    parameter DATA_WIDTH = 8
+    parameter int CLOCK_FREQ_HZ = 50_000_000,
+    parameter int I2C_FREQ_HZ   = 100_000,
+    parameter int ADDR_WIDTH = 7,
+    parameter int DATA_WIDTH = 8
 ) (
     input  logic clock, reset,
 
