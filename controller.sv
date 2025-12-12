@@ -211,6 +211,16 @@ module controller #(
                 end
 
                 STOP: begin
+                    // Generate stop condition
+                    if (HALF_TICK) begin
+                        scl_tx <= 0;
+                        sda_tx <= 0;
+                    end
+                    else if (FULL_TICK) begin
+                        scl_tx <= 1;
+                        sda_tx <= 1;
+                        state <= IDLE;
+                    end
                 end
 
                 default: begin
