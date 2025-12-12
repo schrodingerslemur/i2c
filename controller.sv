@@ -158,6 +158,59 @@ module controller #(
                 end
 
                 READ: begin
+                    if (HALF_TICK) begin
+                        scl_tx <= 0;
+                        sda_tx <= 1; // release sda_tx for reading
+                    end
+                    else if (FULL_TICK) begin
+                        scl_tx <= 1;
+                        if (bit_count < DATA_WIDTH) begin
+                            rx_buffer[DATA_WIDTH - bit_count - 1] <= sda_rx;
+                            bit_count <= bit_count + 1;
+                        end
+                        else begin
+                            // ACK bit
+                            scl_tx <= 0;
+                            if (ack_error == 0) begin
+                                sda_tx <= 0; // send ACK
+                            end
+                            else begin
+                                sda_tx <= 1; // send NACK
+                            end
+
+                            state <= STOP;
+                            rx_data <= rx_buffer;
+                            valid <= 1;
+                        end
+                    end
+
+                end
+
+                WRITE: begin
+                    if (HALF_TICK) begin
+                        scl_tx <= 0;
+                        sda_tx <= tx_buffer[DATA_WIDTH - bit_count - 1];
+                    end
+                    else if (FULL_TICK) begin
+                        scl_tx <= 1;
+                        if (bit_count < DATA_WIDTH) begin
+                            bit_count <= bit_count + 1;
+                        end
+                        else begin
+                            // ACK bit
+                            scl_tx <= 0;
+                            sda_tx <= 1; // release sda_tx for ACK
+
+                            if (sda_rx) begin
+                                ack_error <= 1;
+                            end
+
+                            state <= STOP;
+                        end
+                    end
+                end
+
+                STOP: begin
                 end
 
                 default: begin
