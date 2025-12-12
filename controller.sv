@@ -37,6 +37,7 @@ module controller #(
     // Clock signals
     int clock_count;
     assign FULL_TICK = (clock_count == CLOCKSPERTICK - 1);
+    assign HALF_TICK = (clock_count == (CLOCKSPERTICK / 2) - 1);
 
     // Clock logic
     always_ff @(posedge clock, posedge reset) begin
@@ -62,6 +63,15 @@ module controller #(
 
     logic [$clog2(SDALOWTIME)-1:0] sda_low_count;
 
+    //  Open-source drain for SDA and SCL
+    logic sda_tx, sda_rx;
+    logic scl_tx, scl_rx;
+
+    assign sda = sda_tx ? 1'bz : 1'b0;
+    assign scl = scl_tx ? 1'bz : 1'b0;
+    assign sda_rx = sda;
+    assign scl_rx = scl;
+
     // States
     typedef enum logic [2:0] {
         IDLE,
@@ -85,8 +95,8 @@ module controller #(
                     busy <= 0;
                     valid <= 0;
                     ack_error <= 0;
-                    scl <= 1;
-                    sda <= 1;
+                    scl_tx <= 1;
+                    sda_tx <= 1;
                     if (ready) begin
                         rw_flag <= rw;
                         if (~rw_flag) // write
@@ -99,20 +109,55 @@ module controller #(
                 START: begin
                     busy <= 1;
                     // Generate start condition
-                    sda <= 0;
-                    scl <= 1;
+                    sda_tx <= 0;
+                    scl_tx <= 1;
                     if (FULL_TICK) begin
                         if (sda_low_count < SDALOWTIME - 1) begin
                             sda_low_count <= sda_low_count + 1;
                         end
                         else
                             bit_count <= 0;
+                            addr_count <= 0;
                             state <= ADDR;
                     end
                 end
 
                 ADDR: begin
-                    
+                    // MSB first
+                    // At half tick, set sda_tx, scl_tx go low
+                    // At full tick, scl_tx go high
+
+                    if (HALF_TICK) begin
+                        scl_tx <= 0;
+                        sda_tx <= slave_addr[ADDR_WIDTH - addr_count - 1];
+                    end
+                    else if (FULL_TICK) begin
+                        scl_tx <= 1;
+                        if (addr_count < ADDR_WIDTH) begin
+                            addr_count <= addr_count + 1;
+                        end
+                        else if (addr_count == ADDR_WIDTH) begin
+                            // R/W bit
+                            sda_tx <= rw_flag;
+                            addr_count <= addr_count + 1;
+                        end
+                        else begin
+                            // ACK bit
+                            scl_tx <= 0;
+                            sda_tx <= 1; // release sda_tx for ACK
+
+                            if (sda_rx) begin
+                                ack_error <= 1;
+                                state <= IDLE;
+                            end
+
+                            state <= rw_flag ? READ : WRITE;
+                            bit_count <= 0;
+                        end
+                    end
+                end
+
+                READ: begin
                 end
 
                 default: begin
