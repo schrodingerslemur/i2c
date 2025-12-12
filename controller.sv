@@ -40,7 +40,7 @@ module controller #(
 
     // Clock logic
     always_ff @(posedge clock, posedge reset) begin
-        if (reset or state == IDLE) begin
+        if (reset | (state == IDLE)) begin
             clock_count <= 0;
         end
         else begin
